@@ -1,4 +1,4 @@
- from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.common.by import By
