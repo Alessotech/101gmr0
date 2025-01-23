@@ -9,6 +9,10 @@ RUN apt-get update && apt-get install -y \
     chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
+# Set environment variables for Selenium
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
 # Set working directory
 WORKDIR /app
 
@@ -20,11 +24,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy entire project
 COPY . .
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    CHROME_BIN=/usr/bin/chromium \
-    CHROMEDRIVER_PATH=/usr/bin/chromedriver
 
 # Default command
 CMD ["python", "download_script.py"]
