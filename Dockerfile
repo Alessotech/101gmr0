@@ -5,8 +5,6 @@ RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
-    chromium \
-    chromium-driver \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables for Selenium
