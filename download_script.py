@@ -100,7 +100,7 @@ def automate_download(url, username, password, download_link, timeout=90):
         driver.quit()
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
-@app.post("/download")
+@app.post("/download/")
 async def process_download(request: DownloadRequest):
     try:
         final_link = automate_download(
