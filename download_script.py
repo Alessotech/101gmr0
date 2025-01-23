@@ -1,10 +1,9 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
@@ -15,10 +14,7 @@ import time
 app = FastAPI()
 
 class DownloadRequest(BaseModel):
-    website_url: str = Field(..., description="Website URL to login")
-    username: str = Field(..., description="Username for login")
-    password: str = Field(..., description="Password for login")
-    download_link: str = Field(..., description="Download link to process")
+    download_link: str
 
 def setup_webdriver():
     chrome_options = Options()
@@ -30,23 +26,28 @@ def setup_webdriver():
     service = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=service, options=chrome_options)
 
-def automate_download(url, username, password, download_link, timeout=90):
+def automate_download(download_link, timeout=90):
     try:
+        # Predefined credentials
+        URL = "https://stocip.com/login"
+        USERNAME = "miguelcantero970@gmail.com"
+        PASSWORD = "Reserve85$$"
+
         driver = setup_webdriver()
-        driver.get(url)
+        driver.get(URL)
         
         # Login process
         username_field = WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((By.ID, "username"))
         )
         username_field.clear()
-        username_field.send_keys(username)
+        username_field.send_keys(USERNAME)
         
         password_field = WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((By.ID, "password"))
         )
         password_field.clear()
-        password_field.send_keys(password)
+        password_field.send_keys(PASSWORD)
         
         login_button = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.ID, "wp-submit-login"))
@@ -54,7 +55,7 @@ def automate_download(url, username, password, download_link, timeout=90):
         login_button.click()
         
         WebDriverWait(driver, timeout).until(
-            EC.url_changes(url)
+            EC.url_changes(URL)
         )
         
         # Navigate to service page
@@ -81,24 +82,29 @@ def automate_download(url, username, password, download_link, timeout=90):
         
         time.sleep(5)
         
+        # Wait for copy button
         def copy_button_visible(driver):
             button = driver.find_element(By.ID, "copyButton")
             return button.is_displayed()
         
         WebDriverWait(driver, timeout).until(copy_button_visible)
         
-        # Click copy button
+        # Click copy button to get final link
         copy_button = driver.find_element(By.ID, "copyButton")
         copy_button.click()
+
+
+        final_download_link = driver.execute_script("return navigator.clipboard.readText()")
         
+        # Wait to ensure link is processed
+        time.sleep(3)
+        
+        # Get current URL as final download link
         final_download_link = driver.current_url
         
         driver.quit()
         return final_download_link
         
-    except TimeoutException:
-        driver.quit()
-        raise HTTPException(status_code=408, detail="Timeout during download process")
     except Exception as e:
         driver.quit()
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
@@ -106,12 +112,7 @@ def automate_download(url, username, password, download_link, timeout=90):
 @app.post("/download/")
 async def process_download(request: DownloadRequest):
     try:
-        final_link = automate_download(
-            request.website_url, 
-            request.username, 
-            request.password, 
-            request.download_link
-        )
+        final_link = automate_download(request.download_link)
         return {"download_link": final_link}
     except HTTPException as http_exc:
         raise http_exc
