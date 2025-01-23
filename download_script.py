@@ -5,7 +5,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 import uvicorn
 import os
@@ -17,21 +16,29 @@ class DownloadRequest(BaseModel):
     download_link: str
 
 def setup_webdriver():
+    """Set up the Chrome WebDriver with necessary options."""
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.binary_location = os.getenv("CHROME_BIN", "/usr/bin/chromium")
     
-    service = Service(ChromeDriverManager().install())
+    service = Service(os.getenv("CHROMEDRIVER_PATH", "/usr/bin/chromedriver"))
     return webdriver.Chrome(service=service, options=chrome_options)
 
 def automate_download(download_link, timeout=90):
+    """Automate the download process."""
+    driver = None
     try:
-        # Predefined credentials
+        # Load credentials from environment variables
         URL = "https://stocip.com/login"
-        USERNAME = "miguelcantero970@gmail.com"
-        PASSWORD = "Reserve85$$"
+        USERNAME = os.getenv("STOCIP_USERNAME")
+        PASSWORD = os.getenv("STOCIP_PASSWORD")
+
+        if not USERNAME or not PASSWORD:
+            raise HTTPException(status_code=500, detail="Missing credentials in environment variables.")
 
         driver = setup_webdriver()
         driver.get(URL)
@@ -89,28 +96,21 @@ def automate_download(download_link, timeout=90):
         
         WebDriverWait(driver, timeout).until(copy_button_visible)
         
-        # Click copy button to get final link
+        # Extract final download link
         copy_button = driver.find_element(By.ID, "copyButton")
-        copy_button.click()
-
-
-        final_download_link = driver.execute_script("return navigator.clipboard.readText()")
-        
-        # Wait to ensure link is processed
-        time.sleep(3)
-        
-        # Get current URL as final download link
-        final_download_link = driver.current_url
+        final_download_link = copy_button.get_attribute("data-clipboard-text")
         
         driver.quit()
         return final_download_link
         
     except Exception as e:
-        driver.quit()
+        if driver:
+            driver.quit()
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 @app.post("/download/")
 async def process_download(request: DownloadRequest):
+    """Process the download request."""
     try:
         final_link = automate_download(request.download_link)
         return {"download_link": final_link}
@@ -118,7 +118,8 @@ async def process_download(request: DownloadRequest):
         raise http_exc
 
 def main():
-    port = int(os.environ.get('PORT', 8000))
+    """Run the FastAPI app with Uvicorn."""
+    port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
