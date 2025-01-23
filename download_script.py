@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 import uvicorn
 import os
@@ -13,21 +15,24 @@ import time
 app = FastAPI()
 
 class DownloadRequest(BaseModel):
-    website_url: str
-    username: str
-    password: str
-    download_link: str
+    website_url: str = Field(..., description="Website URL to login")
+    username: str = Field(..., description="Username for login")
+    password: str = Field(..., description="Password for login")
+    download_link: str = Field(..., description="Download link to process")
+
+def setup_webdriver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=chrome_options)
 
 def automate_download(url, username, password, download_link, timeout=90):
     try:
-        # Chrome options for headless browsing
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--remote-debugging-port=9222")
-        
-        driver = webdriver.Chrome(options=chrome_options)
+        driver = setup_webdriver()
         driver.get(url)
         
         # Login process
@@ -86,8 +91,6 @@ def automate_download(url, username, password, download_link, timeout=90):
         copy_button = driver.find_element(By.ID, "copyButton")
         copy_button.click()
         
-        # You might want to extract the final download link here
-        # This is a placeholder - modify based on actual website behavior
         final_download_link = driver.current_url
         
         driver.quit()
@@ -113,6 +116,9 @@ async def process_download(request: DownloadRequest):
     except HTTPException as http_exc:
         raise http_exc
 
-if __name__ == "__main__":
+def main():
     port = int(os.environ.get('PORT', 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    main()
