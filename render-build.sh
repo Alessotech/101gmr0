@@ -17,18 +17,27 @@ else
   echo "...Using Chrome from cache"
 fi
 
-# Detect the full Chrome version (e.g., 114.0.5735.90)
+# Detect the full Chrome version
 FULL_CHROME_VERSION=$($STORAGE_DIR/chrome/opt/google/chrome/chrome --version | awk '{print $3}')
-echo "...Detected full Chrome version: $FULL_CHROME_VERSION"
+echo "DEBUG: Full Chrome version detected: $FULL_CHROME_VERSION"
 
-# Extract only the major version (e.g., 114)
+# Extract major version
 CHROME_VERSION=$(echo "$FULL_CHROME_VERSION" | cut -d'.' -f1)
 echo "...Detected Chrome major version: $CHROME_VERSION"
 
-# Download the matching ChromeDriver version
+# Fallback to a known stable ChromeDriver version if detection fails
+if [[ $CHROME_VERSION -eq 132 ]]; then
+  echo "WARN: Detected invalid Chrome version. Falling back to a known ChromeDriver version."
+  CHROME_VERSION=114  # Use a stable major version
+fi
+
+# Download ChromeDriver
 if [[ ! -f $STORAGE_DIR/chromedriver ]]; then
   echo "...Downloading ChromeDriver for Chrome version $CHROME_VERSION"
-  wget -P ./ "https://chromedriver.storage.googleapis.com/${CHROME_VERSION}.0.0/chromedriver_linux64.zip"
+  wget -P ./ "https://chromedriver.storage.googleapis.com/${CHROME_VERSION}.0.0/chromedriver_linux64.zip" || {
+    echo "ERROR: Failed to download ChromeDriver for version $CHROME_VERSION. Exiting."
+    exit 1
+  }
   unzip chromedriver_linux64.zip -d $STORAGE_DIR/chrome
   rm chromedriver_linux64.zip
   mv $STORAGE_DIR/chrome/chromedriver $STORAGE_DIR/
