@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-import os
 import random
 
 # Initialize FastAPI app
@@ -18,9 +18,11 @@ def setup_webdriver():
     options.add_argument('--disable-gpu')
     options.add_argument('--user-agent={}'.format(random.choice(["User-Agent1", "User-Agent2"])))
 
-    # Explicitly set the ChromeDriver path
-    chromedriver_path = "/opt/render/project/.render/chromedriver"
-    return webdriver.Chrome(executable_path=chromedriver_path, options=options)
+    # Use the Service class to specify the ChromeDriver path
+    chromedriver_path = "/opt/render/project/.render/chromedriver"  # Path to ChromeDriver
+    service = Service(chromedriver_path)
+
+    return webdriver.Chrome(service=service, options=options)
 
 @app.get("/")
 async def root():
