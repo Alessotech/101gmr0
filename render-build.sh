@@ -26,7 +26,7 @@ CHROME_VERSION=$(echo "$FULL_CHROME_VERSION" | cut -d'.' -f1)
 echo "...Detected Chrome major version: $CHROME_VERSION"
 
 # Fallback to a known stable ChromeDriver version if detection fails
-KNOWN_CHROMEDRIVER_VERSION="114.0.5735.90"  # Replace with a reliable ChromeDriver version
+KNOWN_CHROMEDRIVER_VERSION="114.0.5735.90"  # Replace with another version if needed
 if [[ $CHROME_VERSION -eq 132 ]]; then
   echo "WARN: Detected invalid Chrome version. Falling back to a known stable ChromeDriver version."
   CHROMEDRIVER_URL="https://chromedriver.storage.googleapis.com/${KNOWN_CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
@@ -46,6 +46,10 @@ if [[ ! -f $STORAGE_DIR/chromedriver ]]; then
   rm chromedriver_linux64.zip
   mv $STORAGE_DIR/chrome/chromedriver $STORAGE_DIR/
 fi
+
+# Increase shared memory for Chrome
+echo "...Increasing shared memory for Chrome"
+mount -o remount,size=2G /dev/shm || true
 
 # Install Python dependencies
 pip install -r requirements.txt
