@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# exit on error
+# Exit on error
 set -o errexit
 
 STORAGE_DIR=/opt/render/project/.render
 
+# Install Chrome if not already installed
 if [[ ! -d $STORAGE_DIR/chrome ]]; then
   echo "...Downloading Chrome"
   mkdir -p $STORAGE_DIR/chrome
@@ -16,13 +17,18 @@ else
   echo "...Using Chrome from cache"
 fi
 
-# Download ChromeDriver matching the installed Chrome version
-CHROME_VERSION=$($STORAGE_DIR/chrome/opt/google/chrome/chrome --version | awk '{print $3}' | cut -d'.' -f1)
-echo "...Detected Chrome version: $CHROME_VERSION"
+# Detect the full Chrome version (e.g., 114.0.5735.90)
+FULL_CHROME_VERSION=$($STORAGE_DIR/chrome/opt/google/chrome/chrome --version | awk '{print $3}')
+echo "...Detected full Chrome version: $FULL_CHROME_VERSION"
 
+# Extract only the major version (e.g., 114)
+CHROME_VERSION=$(echo "$FULL_CHROME_VERSION" | cut -d'.' -f1)
+echo "...Detected Chrome major version: $CHROME_VERSION"
+
+# Download the matching ChromeDriver version
 if [[ ! -f $STORAGE_DIR/chromedriver ]]; then
-  echo "...Downloading ChromeDriver"
-  wget -P ./ "https://chromedriver.storage.googleapis.com/${CHROME_VERSION}.0/chromedriver_linux64.zip"
+  echo "...Downloading ChromeDriver for Chrome version $CHROME_VERSION"
+  wget -P ./ "https://chromedriver.storage.googleapis.com/${CHROME_VERSION}.0.0/chromedriver_linux64.zip"
   unzip chromedriver_linux64.zip -d $STORAGE_DIR/chrome
   rm chromedriver_linux64.zip
   mv $STORAGE_DIR/chrome/chromedriver $STORAGE_DIR/
