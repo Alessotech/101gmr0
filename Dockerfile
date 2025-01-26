@@ -21,4 +21,4 @@ RUN playwright install --with-deps
 EXPOSE 8080
 
 # Start the FastAPI application with Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "download_script:app", "--host", "0.0.0.0", "--port", "8080"]
