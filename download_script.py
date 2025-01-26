@@ -1,11 +1,18 @@
+from fastapi import FastAPI, HTTPException
 from playwright.async_api import async_playwright
 import asyncio
-import os
 
-async def automate_download(url, username, password, download_link, timeout=90):
-    """Automate the download process."""
+# Initialize FastAPI app
+app = FastAPI()
+
+# Hardcoded constants
+WEBSITE_URL = "https://stocip.com/login"
+USERNAME = "your_username"
+PASSWORD = "your_password"
+
+# Automation function using Playwright
+async def automate_download(download_link: str, timeout: int = 90):
     async with async_playwright() as p:
-        # Launch browser in headless mode with low-resource options
         browser = await p.chromium.launch(
             headless=True,
             args=[
@@ -13,21 +20,21 @@ async def automate_download(url, username, password, download_link, timeout=90):
                 "--disable-setuid-sandbox",
                 "--disable-gpu",
                 "--disable-extensions",
-            ]
+            ],
         )
         page = await browser.new_page()
 
         try:
             # Navigate to the login page
-            await page.goto(url)
+            await page.goto(WEBSITE_URL)
 
             # Login process
-            await page.fill("#username", username)
-            await page.fill("#password", password)
+            await page.fill("#username", USERNAME)
+            await page.fill("#password", PASSWORD)
             await page.click("#wp-submit-login")
 
             # Wait for navigation
-            await page.wait_for_url(lambda new_url: new_url != url, timeout=timeout * 1000)
+            await page.wait_for_url(lambda new_url: new_url != WEBSITE_URL, timeout=timeout * 1000)
             print("Login successful!")
 
             # Navigate to the service page
@@ -52,20 +59,21 @@ async def automate_download(url, username, password, download_link, timeout=90):
 
         except Exception as e:
             print(f"An error occurred: {e}")
-            raise
+            raise HTTPException(status_code=500, detail=str(e))
 
         finally:
             await browser.close()
 
-if __name__ == "__main__":
-    # Retrieve sensitive information from environment variables
-    WEBSITE_URL = os.getenv("WEBSITE_URL", "https://stocip.com/login")
-    USERNAME = os.getenv("USERNAME", "default_user")
-    PASSWORD = os.getenv("PASSWORD", "default_password")
-    DOWNLOAD_LINK = os.getenv("DOWNLOAD_LINK", "https://elements.envato.com/example-link")
-
-    # Run the automation script
+# FastAPI route to trigger automation
+@app.post("/automate-download/")
+async def automate(download_link: str):
     try:
-        asyncio.run(automate_download(WEBSITE_URL, USERNAME, PASSWORD, DOWNLOAD_LINK))
+        await automate_download(download_link)
+        return {"message": "Automation completed successfully!"}
     except Exception as e:
-        print(f"Automation failed: {e}")
+        return {"error": str(e)}
+
+# Health check route
+@app.get("/ping")
+async def ping():
+    return {"message": "Pong!"}
