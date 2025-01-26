@@ -29,8 +29,8 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.goto(WEBSITE_URL)
 
             # Login process
-            await page.fill("#username", USERNAME)
-            await page.fill("#password", PASSWORD)
+            await page.fill("#username", "miguelcantero970@gmail.com")
+            await page.fill("#password", "Reserve85$$")
             await page.click("#wp-submit-login")
 
             # Wait for navigation
