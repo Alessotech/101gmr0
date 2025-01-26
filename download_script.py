@@ -1,8 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from playwright.async_api import async_playwright
-import asyncio
 
-# Initialize FastAPI app
 app = FastAPI()
 
 # Hardcoded constants
@@ -12,6 +9,9 @@ PASSWORD = "your_password"
 
 # Automation function using Playwright
 async def automate_download(download_link: str, timeout: int = 90):
+    from playwright.async_api import async_playwright
+    import asyncio
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -64,12 +64,12 @@ async def automate_download(download_link: str, timeout: int = 90):
         finally:
             await browser.close()
 
-# FastAPI route to trigger automation
-@app.post("/automate-download/")
+# FastAPI route to trigger automation with download_link as a query parameter
+@app.get("/automate-download/")
 async def automate(download_link: str):
     try:
         await automate_download(download_link)
-        return {"message": "Automation completed successfully!"}
+        return {"message": "Automation completed successfully!", "link": download_link}
     except Exception as e:
         return {"error": str(e)}
 
