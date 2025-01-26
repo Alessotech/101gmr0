@@ -1,17 +1,16 @@
 from fastapi import FastAPI, HTTPException
+from playwright.async_api import async_playwright
+import asyncio
 
 app = FastAPI()
 
 # Hardcoded constants
 WEBSITE_URL = "https://stocip.com/login"
-USERNAME = "your_username"
-PASSWORD = "your_password"
+USERNAME = "miguelcantero970@gmail.com"
+PASSWORD = "Reserve85$$"
 
 # Automation function using Playwright
 async def automate_download(download_link: str, timeout: int = 90):
-    from playwright.async_api import async_playwright
-    import asyncio
-
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -29,8 +28,8 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.goto(WEBSITE_URL)
 
             # Login process
-            await page.fill("#username", "miguelcantero970@gmail.com")
-            await page.fill("#password", "Reserve85$$")
+            await page.fill("#username", USERNAME)
+            await page.fill("#password", PASSWORD)
             await page.click("#wp-submit-login")
 
             # Wait for navigation
@@ -49,13 +48,21 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.click("#downloadButton")
             print("Download button clicked!")
 
-            # Wait for the copy button
+            # Wait for the "Copy" button
             await page.wait_for_selector("#copyButton", timeout=timeout * 1000)
+
+            # Delay 5 seconds before clicking "Copy" button
+            await asyncio.sleep(5)
+            print("Waiting for 5 seconds before clicking 'Copy' button...")
+
+            # Click the "Copy" button
             await page.click("#copyButton")
             print("Copy button clicked!")
 
-            # Additional wait to simulate user action
-            await asyncio.sleep(30)
+            # Retrieve the copied link from the clipboard or another element
+            # Adjust the selector if the copied link is displayed in a specific element
+            copied_link = await page.inner_text("#copyButton")  # Replace with correct selector
+            print(f"Copied link: {copied_link}")
 
         except Exception as e:
             print(f"An error occurred: {e}")
