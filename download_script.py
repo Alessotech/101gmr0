@@ -1,49 +1,71 @@
-from fastapi import FastAPI
 from playwright.async_api import async_playwright
-import random
+import asyncio
+import os
 
-# Initialize FastAPI app
-app = FastAPI()
-
-# List of user agents for randomization
-USER_AGENTS = ["User-Agent1", "User-Agent2"]
-
-async def fetch_page_title(url: str):
-    """Fetch the page title using Playwright."""
+async def automate_download(url, username, password, download_link, timeout=90):
+    """Automate the download process."""
     async with async_playwright() as p:
+        # Launch browser in headless mode with low-resource options
         browser = await p.chromium.launch(
-            headless=True,  # Run in headless mode
+            headless=True,
             args=[
-                "--no-sandbox",  # Required for Docker containers
-                "--disable-dev-shm-usage",  # Prevent shared memory issues
-                "--disable-gpu",  # Disable GPU rendering
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-gpu",
                 "--disable-extensions",
-                "--disable-infobars",
-                "--disable-background-networking",
-                "--disable-background-timer-throttling",
-                "--disable-renderer-backgrounding",
-                "--ignore-certificate-errors",
-                f"--user-agent={random.choice(USER_AGENTS)}"  # Random user agent
             ]
         )
         page = await browser.new_page()
+
         try:
-            await page.goto(url, timeout=10000)  # 10-second timeout for loading
-            title = await page.title()
+            # Navigate to the login page
+            await page.goto(url)
+
+            # Login process
+            await page.fill("#username", username)
+            await page.fill("#password", password)
+            await page.click("#wp-submit-login")
+
+            # Wait for navigation
+            await page.wait_for_url(lambda new_url: new_url != url, timeout=timeout * 1000)
+            print("Login successful!")
+
+            # Navigate to the service page
+            await page.click('a[href="/product/envato-elements-file-download/"]')
+            print("Navigated to service page!")
+
+            # Enter the download link
+            await page.fill("#downloadLink", download_link)
+            print("Download link entered!")
+
+            # Click the download button
+            await page.click("#downloadButton")
+            print("Download button clicked!")
+
+            # Wait for the copy button
+            await page.wait_for_selector("#copyButton", timeout=timeout * 1000)
+            await page.click("#copyButton")
+            print("Copy button clicked!")
+
+            # Additional wait to simulate user action
+            await asyncio.sleep(30)
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            raise
+
         finally:
             await browser.close()
-        return title
 
-@app.get("/")
-async def root():
-    """Test route to verify Playwright setup."""
+if __name__ == "__main__":
+    # Retrieve sensitive information from environment variables
+    WEBSITE_URL = os.getenv("WEBSITE_URL", "https://stocip.com/login")
+    USERNAME = os.getenv("USERNAME", "default_user")
+    PASSWORD = os.getenv("PASSWORD", "default_password")
+    DOWNLOAD_LINK = os.getenv("DOWNLOAD_LINK", "https://elements.envato.com/example-link")
+
+    # Run the automation script
     try:
-        title = await fetch_page_title("https://www.google.com")
-        return {"message": "Playwright is working!", "page_title": title}
+        asyncio.run(automate_download(WEBSITE_URL, USERNAME, PASSWORD, DOWNLOAD_LINK))
     except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/ping")
-async def ping():
-    """Health check endpoint."""
-    return {"message": "Pong!"}
+        print(f"Automation failed: {e}")
