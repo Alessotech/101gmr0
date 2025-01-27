@@ -75,7 +75,9 @@ async def get_new_tab_url():
             # Wait for the new tab to open
             new_page = await new_page_promise
             await new_page.wait_for_load_state('domcontentloaded')
-            new_tab_url = new_page.url  # Capture the URL from the new tab
+            new_tab_url = new_page.url
+            
+            print(new_tab_url)# Capture the URL from the new tab
             
 
             # Additional wait after copying
