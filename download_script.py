@@ -21,7 +21,7 @@ async def automate_download(download_link: str, timeout: int = 90):
                 "--disable-extensions",
             ],
         )
-        context = await browser.new_context()  # New browser context for clipboard access
+        context = await browser.new_context()
         page = await context.new_page()
 
         try:
@@ -49,54 +49,29 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.click("#downloadButton")
             print("Download button clicked!")
 
-            # Wait for the "Copy" button
-            await page.wait_for_selector("#copyButton", timeout=timeout * 1000)
-
-            # Delay before clicking "Copy" button
-            await asyncio.sleep(5)
-            print("Waiting for 5 seconds before clicking 'Copy' button...")
-            
-async def get_new_tab_url():
-    """Fetches the URL from a new tab opened by clicking a specific button."""
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)  # Set headless=False to see the browser action
-        context = await browser.new_context()
-        page = await context.new_page()
-
-        try:
-            await page.click("#downloadButton")  # Adjust the selector to your specific button
-            print("Download xxbutton clicked!")
-
-            # Prepare to catch the new tab that opens
-            new_page_promise = context.wait_for_event('page')
-
-            # Trigger the action that opens the new tab
-            
             # Wait for the new tab to open
+            new_page_promise = context.wait_for_event("page")
             new_page = await new_page_promise
-            await new_page.wait_for_load_state('domcontentloaded')
+            await new_page.wait_for_load_state("domcontentloaded")
             new_tab_url = new_page.url
-            
-            print(new_tab_url)# Capture the URL from the new tab
-            
 
-            # Additional wait after copying
-            await asyncio.sleep(5)
-            print("Waited an additional 5 seconds after copying the link.")
+            print(f"New tab URL: {new_tab_url}")
+            return new_tab_url
 
         except Exception as e:
             print(f"An error occurred: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
         finally:
+            await context.close()
             await browser.close()
 
 # FastAPI route to trigger automation with download_link as a query parameter
 @app.get("/automate-download/")
 async def automate(download_link: str):
     try:
-        await automate_download(download_link)
-        return {"message": "Automation completed successfully!", "link": download_link}
+        new_tab_url = await automate_download(download_link)
+        return {"message": "Automation completed successfully!", "url": new_tab_url}
     except Exception as e:
         return {"error": str(e)}
 
