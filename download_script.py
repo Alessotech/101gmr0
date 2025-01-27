@@ -55,27 +55,28 @@ async def automate_download(download_link: str, timeout: int = 90):
             # Delay before clicking "Copy" button
             await asyncio.sleep(5)
             print("Waiting for 5 seconds before clicking 'Copy' button...")
+            
+async def get_new_tab_url():
+    """Fetches the URL from a new tab opened by clicking a specific button."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)  # Set headless=False to see the browser action
+        context = await browser.new_context()
+        page = await context.new_page()
 
-            # Click the "Copy" button
-            await page.click("#copyButton")
-            print("Copy button clicked!")
+        try:
+            await page.click("#downloadButton")  # Adjust the selector to your specific button
+            print("Download xxbutton clicked!")
 
-            # Attempt to retrieve the link from the clipboard
-            try:
-                clipboard_content = await context.clipboard.read_text()
-                if clipboard_content:
-                    print(f"Copied link from clipboard: {clipboard_content}")
-                else:
-                    print("Clipboard is empty or inaccessible.")
-            except Exception as e:
-                print(f"Clipboard access failed: {e}")
+            # Prepare to catch the new tab that opens
+            new_page_promise = context.wait_for_event('page')
 
-            # If clipboard is empty, check if the link is stored in a DOM element
-            try:
-                copied_link = await page.input_value("#hiddenInput")  # Replace with actual selector
-                print(f"Copied link from DOM element: {copied_link}")
-            except Exception as e:
-                print(f"Failed to retrieve copied link from DOM: {e}")
+            # Trigger the action that opens the new tab
+            
+            # Wait for the new tab to open
+            new_page = await new_page_promise
+            await new_page.wait_for_load_state('domcontentloaded')
+            new_tab_url = new_page.url  # Capture the URL from the new tab
+            
 
             # Additional wait after copying
             await asyncio.sleep(5)
