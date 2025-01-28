@@ -13,7 +13,7 @@ PASSWORD = "Reserve85$$"
 async def automate_download(download_link: str, timeout: int = 90):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            headless=False,  # Set to False to debug
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -23,6 +23,19 @@ async def automate_download(download_link: str, timeout: int = 90):
         )
         context = await browser.new_context()
         page = await context.new_page()
+
+        extracted_link = None  # Store the detected download link
+
+        # **Console Listener to Detect Download Link**
+        async def console_listener(msg):
+            nonlocal extracted_link
+            text = msg.text
+            print(f"[Browser Console] {text}")  # Print all console messages
+            if "video-downloads.elements.envato" in text:  # Adjust the keyword based on actual log format
+                extracted_link = text  # Store the detected link
+                print(f"Download link detected: {extracted_link}")
+
+        page.on("console", console_listener)  # Attach listener to page
 
         try:
             # Navigate to the login page
@@ -49,14 +62,21 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.click("#downloadButton")
             print("Download button clicked!")
 
-            # Wait for the new tab to open
-            new_page_promise = context.wait_for_event("page")
-            new_page = await new_page_promise
-            await new_page.wait_for_load_state("domcontentloaded")
-            new_tab_url = new_page.url
+            # **WAIT FOR COPY BUTTON TO APPEAR**
+            await page.wait_for_selector("#copyButton", timeout=timeout * 1000)  # Change to correct selector
+            print("Copy button appeared!")
 
-            print(f"New tab URL: {new_tab_url}")
-            return new_tab_url
+            # **CLICK COPY BUTTON**
+            await page.click("#copyButton")
+            print("Copy button clicked!")
+
+            # **WAIT FOR CONSOLE TO LOG THE DOWNLOAD LINK**
+            await asyncio.sleep(5)  # Allow some time for the console message to appear
+
+            if extracted_link:
+                return {"download_link": extracted_link}
+            else:
+                return {"message": "No download link detected in console."}
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -70,8 +90,8 @@ async def automate_download(download_link: str, timeout: int = 90):
 @app.get("/automate-download/")
 async def automate(download_link: str):
     try:
-        new_tab_url = await automate_download(download_link)
-        return {"message": "Automation completed successfully!", "url": new_tab_url}
+        result = await automate_download(download_link)
+        return {"message": "Automation completed successfully!", "download_link": result["download_link"]}
     except Exception as e:
         return {"error": str(e)}
 
