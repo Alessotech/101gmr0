@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from playwright.async_api import async_playwright
 import asyncio
+import re
 
 app = FastAPI()
 
@@ -9,69 +10,69 @@ WEBSITE_URL = "https://stocip.com/login"
 USERNAME = "miguelcantero970@gmail.com"
 PASSWORD = "Reserve85$$"
 
-# Automation function using Playwright
 async def automate_download(download_link: str, timeout: int = 90):
     async with async_playwright() as p:
+        # RUNNING IN NON-HEADLESS MODE (Since it's on DigitalOcean)
         browser = await p.chromium.launch(
-            headless=True,  # Set to False to debug
+            headless=False,  # RUN WITH Xvfb (Virtual Display)
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-gpu",
                 "--disable-extensions",
+                "--use-gl=egl",
+                "--enable-automation",
+                "--disable-infobars",
+                "--enable-features=ClipboardAPI",
             ],
         )
-        context = await browser.new_context()
+        context = await browser.new_context(
+            permissions=["clipboard-read", "clipboard-write"]  # Ensure clipboard access
+        )
         page = await context.new_page()
 
-        extracted_link = None  # Store the detected download link
+        extracted_link = None  # Store detected download link
 
-        # **Console Listener to Detect Download Link**
+        # Console Listener
         async def console_listener(msg):
             nonlocal extracted_link
             text = msg.text
-            print(f"[Browser Console] {text}")  # Print all console messages
-            if "video-downloads.elements.envato" in text:  # Adjust the keyword based on actual log format
-                extracted_link = text  # Store the detected link
+            print(f"[Browser Console] {text}")
+            match = re.search(r'https://elements.envato.com/[^\s"\']+', text)
+            if match:
+                extracted_link = match.group(0)
                 print(f"Download link detected: {extracted_link}")
 
-        page.on("console", console_listener)  # Attach listener to page
+        page.on("console", console_listener)
 
         try:
-            # Navigate to the login page
             await page.goto(WEBSITE_URL)
-
-            # Login process
             await page.fill("#username", USERNAME)
             await page.fill("#password", PASSWORD)
             await page.click("#wp-submit-login")
 
-            # Wait for navigation
             await page.wait_for_url(lambda new_url: new_url != WEBSITE_URL, timeout=timeout * 1000)
             print("Login successful!")
 
-            # Navigate to the service page
             await page.click('a[href="/product/envato-elements-file-download/"]')
             print("Navigated to service page!")
 
-            # Enter the download link
             await page.fill("#downloadLink", download_link)
             print("Download link entered!")
 
-            # Click the download button
             await page.click("#downloadButton")
             print("Download button clicked!")
 
-            # **WAIT FOR COPY BUTTON TO APPEAR**
-            await page.wait_for_selector("#copyButton", timeout=timeout * 1000)  # Change to correct selector
+            # Wait for Copy Button
+            await page.wait_for_selector("#copyButton", timeout=timeout * 1000)
             print("Copy button appeared!")
 
-            # **CLICK COPY BUTTON**
-            await page.click("#copyButton")
+            # Click Copy Button Using JavaScript
+            await page.evaluate("document.querySelector('#copyButton').click();")
             print("Copy button clicked!")
 
-            # **WAIT FOR CONSOLE TO LOG THE DOWNLOAD LINK**
-            await asyncio.sleep(5)  # Allow some time for the console message to appear
+            # Wait for Console to Log the Download Link
+            await asyncio.sleep(5)
 
             if extracted_link:
                 return {"download_link": extracted_link}
@@ -86,7 +87,6 @@ async def automate_download(download_link: str, timeout: int = 90):
             await context.close()
             await browser.close()
 
-# FastAPI route to trigger automation with download_link as a query parameter
 @app.get("/automate-download/")
 async def automate(download_link: str):
     try:
@@ -95,7 +95,6 @@ async def automate(download_link: str):
     except Exception as e:
         return {"error": str(e)}
 
-# Health check route
 @app.get("/ping")
 async def ping():
     return {"message": "Pong!"}
