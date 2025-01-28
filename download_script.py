@@ -13,7 +13,7 @@ PASSWORD = "Reserve85$$"
 async def automate_download(download_link: str, timeout: int = 90):
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,  # Set to False to debug
+            headless=True,  # Set to False to debug
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
