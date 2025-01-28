@@ -12,28 +12,24 @@ PASSWORD = "Reserve85$$"
 
 async def automate_download(download_link: str, timeout: int = 90):
     async with async_playwright() as p:
-        # RUNNING IN NON-HEADLESS MODE (Since it's on DigitalOcean)
+        # ✅ Run in Headless Mode (Required for DigitalOcean App Platform)
         browser = await p.chromium.launch(
-            headless=False,  # RUN WITH Xvfb (Virtual Display)
+            headless=True,  # Must be True for DigitalOcean App Platform
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-gpu",
                 "--disable-extensions",
-                "--use-gl=egl",
                 "--enable-automation",
                 "--disable-infobars",
-                "--enable-features=ClipboardAPI",
             ],
         )
-        context = await browser.new_context(
-            permissions=["clipboard-read", "clipboard-write"]  # Ensure clipboard access
-        )
+        context = await browser.new_context()
         page = await context.new_page()
 
         extracted_link = None  # Store detected download link
 
-        # Console Listener
+        # ✅ Console Listener to Detect Download Link
         async def console_listener(msg):
             nonlocal extracted_link
             text = msg.text
@@ -41,7 +37,7 @@ async def automate_download(download_link: str, timeout: int = 90):
             match = re.search(r'https://elements.envato.com/[^\s"\']+', text)
             if match:
                 extracted_link = match.group(0)
-                print(f"Download link detected: {extracted_link}")
+                print(f"✅ Download link detected: {extracted_link}")
 
         page.on("console", console_listener)
 
@@ -52,35 +48,35 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.click("#wp-submit-login")
 
             await page.wait_for_url(lambda new_url: new_url != WEBSITE_URL, timeout=timeout * 1000)
-            print("Login successful!")
+            print("✅ Login successful!")
 
             await page.click('a[href="/product/envato-elements-file-download/"]')
-            print("Navigated to service page!")
+            print("✅ Navigated to service page!")
 
             await page.fill("#downloadLink", download_link)
-            print("Download link entered!")
+            print("✅ Download link entered!")
 
             await page.click("#downloadButton")
-            print("Download button clicked!")
+            print("✅ Download button clicked!")
 
-            # Wait for Copy Button
+            # ✅ Wait for Copy Button
             await page.wait_for_selector("#copyButton", timeout=timeout * 1000)
-            print("Copy button appeared!")
+            print("✅ Copy button appeared!")
 
-            # Click Copy Button Using JavaScript
+            # ✅ Click Copy Button Using JavaScript
             await page.evaluate("document.querySelector('#copyButton').click();")
-            print("Copy button clicked!")
+            print("✅ Copy button clicked!")
 
-            # Wait for Console to Log the Download Link
+            # ✅ Wait for Console to Log the Download Link
             await asyncio.sleep(5)
 
             if extracted_link:
                 return {"download_link": extracted_link}
             else:
-                return {"message": "No download link detected in console."}
+                return {"message": "❌ No download link detected in console."}
 
         except Exception as e:
-            print(f"An error occurred: {e}")
+            print(f"❌ An error occurred: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
         finally:
@@ -91,7 +87,7 @@ async def automate_download(download_link: str, timeout: int = 90):
 async def automate(download_link: str):
     try:
         result = await automate_download(download_link)
-        return {"message": "Automation completed successfully!", "download_link": result["download_link"]}
+        return {"message": "✅ Automation completed successfully!", "download_link": result["download_link"]}
     except Exception as e:
         return {"error": str(e)}
 
