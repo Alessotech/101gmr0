@@ -5,16 +5,14 @@ import re
 
 app = FastAPI()
 
-# Hardcoded constants
 WEBSITE_URL = "https://stocip.com/login"
 USERNAME = "miguelcantero970@gmail.com"
 PASSWORD = "Reserve85$$"
 
 async def automate_download(download_link: str, timeout: int = 90):
     async with async_playwright() as p:
-        # ✅ Run in Headless Mode (Required for DigitalOcean App Platform)
         browser = await p.chromium.launch(
-            headless=True,  # Must be True for DigitalOcean App Platform
+            headless=True,  # Must be True for DigitalOcean
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
@@ -22,14 +20,18 @@ async def automate_download(download_link: str, timeout: int = 90):
                 "--disable-extensions",
                 "--enable-automation",
                 "--disable-infobars",
+                "--window-size=1920,1080",
+                "--start-maximized",
+                "--disable-blink-features=AutomationControlled",  # Prevent bot detection
             ],
         )
-        context = await browser.new_context()
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        )
         page = await context.new_page()
 
-        extracted_link = None  # Store detected download link
+        extracted_link = None
 
-        # ✅ Console Listener to Detect Download Link
         async def console_listener(msg):
             nonlocal extracted_link
             text = msg.text
@@ -46,7 +48,6 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.fill("#username", USERNAME)
             await page.fill("#password", PASSWORD)
             await page.click("#wp-submit-login")
-
             await page.wait_for_url(lambda new_url: new_url != WEBSITE_URL, timeout=timeout * 1000)
             print("✅ Login successful!")
 
@@ -59,15 +60,18 @@ async def automate_download(download_link: str, timeout: int = 90):
             await page.click("#downloadButton")
             print("✅ Download button clicked!")
 
-            # ✅ Wait for Copy Button
-            await page.wait_for_selector("#copyButton", timeout=timeout * 1000)
+            await page.wait_for_selector("#copyButton", timeout=10000)
             print("✅ Copy button appeared!")
 
-            # ✅ Click Copy Button Using JavaScript
+            await page.evaluate("document.querySelector('#copyButton').scrollIntoView()")
+            is_disabled = await page.evaluate("document.querySelector('#copyButton').disabled")
+            if is_disabled:
+                print("❌ Copy button is disabled. Enabling it...")
+                await page.evaluate("document.querySelector('#copyButton').removeAttribute('disabled');")
+
             await page.evaluate("document.querySelector('#copyButton').click();")
             print("✅ Copy button clicked!")
 
-            # ✅ Wait for Console to Log the Download Link
             await asyncio.sleep(5)
 
             if extracted_link:
